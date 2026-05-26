@@ -1,0 +1,81 @@
+name: Release Package
+
+on:
+  push:
+    branches:
+      - "**"
+    tags:
+      - "v*"
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows-portable:
+    name: Windows Portable x86_64
+    runs-on: windows-2025
+
+    defaults:
+      run:
+        shell: C:/msys64/usr/bin/bash.exe -leo pipefail {0}
+
+    env:
+      MSYSTEM: MINGW64
+      CHERE_INVOKING: 1
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install dependencies
+        run: |
+          export PATH=/mingw64/bin:/usr/bin:$PATH
+          pacman -S --needed --noconfirm \
+            git \
+            mingw-w64-x86_64-gcc \
+            mingw-w64-x86_64-cmake \
+            mingw-w64-x86_64-make \
+            mingw-w64-x86_64-opencv \
+            unzip
+          echo "C:/msys64/mingw64/bin" >> "$GITHUB_PATH"
+          echo "C:/msys64/usr/bin" >> "$GITHUB_PATH"
+
+      - name: Build release package
+        run: |
+          export PATH=/mingw64/bin:/usr/bin:$PATH
+          powershell -ExecutionPolicy Bypass -File scripts/package_release.ps1 -OpenCVDir "C:/msys64/mingw64/lib/cmake/opencv4" -Force
+
+      - name: Verify package contents
+        run: |
+          export PATH=/mingw64/bin:/usr/bin:$PATH
+          zip_path=$(ls dist/release/*.zip | head -n 1)
+          unzip -Z1 "$zip_path" | tee package-contents.txt
+
+          if grep -E '(^|/)(CMakeFiles|_deps|CMakeCache\.txt|cmake_install\.cmake|CPackConfig\.cmake|Makefile)(/|$)' package-contents.txt; then
+            echo "Release ZIP contains build intermediates"
+            exit 1
+          fi
+
+      - name: Upload portable artifact
+        uses: actions/upload-artifact@v4
+        with:
+          if-no-files-found: error
+          name: Windows Portable x86_64
+          path: dist/release/*.zip
+
+      - name: Upload package to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ZipPath = Get-ChildItem -Path dist/release -Filter *.zip | Select-Object -First 1
+          gh release view $env:GITHUB_REF_NAME
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $env:GITHUB_REF_NAME --title $env:GITHUB_REF_NAME --generate-notes
+          }
+          gh release upload $env:GITHUB_REF_NAME $ZipPath.FullName --clobber
