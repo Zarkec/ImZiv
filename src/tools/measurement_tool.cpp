@@ -20,6 +20,15 @@ namespace {
 
         ImGui::Separator();
 
+        ImGui::SetNextItemWidth(100);
+        ImGui::InputFloat("比例系数", &canvas.measureScale, 0, 0, "%.4f");
+        ImGui::SameLine();
+        ImGui::TextDisabled("(像素/单位)");
+        ImGui::SetNextItemWidth(100);
+        ImGui::InputText("单位", canvas.measureUnit, sizeof(canvas.measureUnit));
+
+        ImGui::Separator();
+
         auto segColorVec4 = [](ImU32 c) -> ImVec4 {
             return ImVec4(((c >> 0) & 0xFF) / 255.0f, ((c >> 8) & 0xFF) / 255.0f,
                           ((c >> 16) & 0xFF) / 255.0f, ((c >> 24) & 0xFF) / 255.0f);
@@ -35,18 +44,31 @@ namespace {
                 double dy = canvas.measurePoints[i].y - canvas.measurePoints[i - 1].y;
                 double seg = std::sqrt(dx * dx + dy * dy);
                 total += seg;
-                ImGui::TextColored(segColorVec4(ImageCanvas::MeasureSegColors[(i - 1) % numColors]), "段%d: %.2f px", i, seg);
+                if (canvas.measureScale > 0.0f)
+                    ImGui::TextColored(segColorVec4(ImageCanvas::MeasureSegColors[(i - 1) % numColors]),
+                        "段%d: %.2f px (%.4f %s)", i, seg, seg / canvas.measureScale, canvas.measureUnit);
+                else
+                    ImGui::TextColored(segColorVec4(ImageCanvas::MeasureSegColors[(i - 1) % numColors]),
+                        "段%d: %.2f px", i, seg);
             }
             if (canvas.measureActive && canvas.measurePoints.size() >= 1) {
                 double dx = canvas.measureLiveX - canvas.measurePoints.back().x;
                 double dy = canvas.measureLiveY - canvas.measurePoints.back().y;
                 double live = std::sqrt(dx * dx + dy * dy);
-                ImGui::TextColored(segColorVec4(ImageCanvas::MeasureSegColors[(canvas.measurePoints.size() - 1) % numColors]), "当前: %.2f px", live);
+                if (canvas.measureScale > 0.0f)
+                    ImGui::TextColored(segColorVec4(ImageCanvas::MeasureSegColors[(canvas.measurePoints.size() - 1) % numColors]),
+                        "当前: %.2f px (%.4f %s)", live, live / canvas.measureScale, canvas.measureUnit);
+                else
+                    ImGui::TextColored(segColorVec4(ImageCanvas::MeasureSegColors[(canvas.measurePoints.size() - 1) % numColors]),
+                        "当前: %.2f px", live);
                 total += live;
             }
             ImGui::Separator();
             ImGui::Text("总距离");
-            ImGui::TextColored(ImVec4(1.0f, 0.31f, 0.31f, 1.0f), "%.2f 像素", total);
+            if (canvas.measureScale > 0.0f)
+                ImGui::TextColored(ImVec4(1.0f, 0.31f, 0.31f, 1.0f), "%.2f px (%.4f %s)", total, total / canvas.measureScale, canvas.measureUnit);
+            else
+                ImGui::TextColored(ImVec4(1.0f, 0.31f, 0.31f, 1.0f), "%.2f 像素", total);
             ImGui::Text("点数: %d", (int)canvas.measurePoints.size());
         }
 

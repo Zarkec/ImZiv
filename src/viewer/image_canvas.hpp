@@ -100,6 +100,8 @@ public:
     // --- Tool state (public for Phase 1 compatibility with tools/nodes) ---
     bool measureMode = false;
     bool measureActive = false;
+    float measureScale = 0.0f;
+    char measureUnit[32] = "mm";
     std::vector<ImVec2> measurePoints;
     float measureLiveX = 0.0f;
     float measureLiveY = 0.0f;

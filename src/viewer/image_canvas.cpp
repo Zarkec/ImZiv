@@ -1058,8 +1058,12 @@ void ImageCanvas::draw(const ImVec2& size) {
                 ImVec2 prev = toScreen(measurePoints[i - 1]);
                 dl->AddLine(prev, p, col, 2.0f);
                 double dx = p.x - prev.x, dy = p.y - prev.y;
+                double segPx = std::sqrt(dx * dx + dy * dy) / z;
                 char label[64];
-                ImFormatString(label, sizeof(label), "%.2f", std::sqrt(dx * dx + dy * dy) / z);
+                if (measureScale > 0.0f)
+                    ImFormatString(label, sizeof(label), "%.2f (%.4f %s)", segPx, segPx / measureScale, measureUnit);
+                else
+                    ImFormatString(label, sizeof(label), "%.2f", segPx);
                 ImVec2 mid((prev.x + p.x) * 0.5f, (prev.y + p.y) * 0.5f - 18.0f);
                 dl->AddText(mid + ImVec2(1, 1), IM_COL32(0, 0, 0, 180), label);
                 dl->AddText(mid, col, label);
@@ -1081,8 +1085,11 @@ void ImageCanvas::draw(const ImVec2& size) {
                 double dy = measurePoints[i].y - measurePoints[i - 1].y;
                 total += std::sqrt(dx * dx + dy * dy);
             }
-            char label[64];
-            ImFormatString(label, sizeof(label), "总计: %.2f 像素", total);
+            char label[128];
+            if (measureScale > 0.0f)
+                ImFormatString(label, sizeof(label), "总计: %.2f px (%.4f %s)", total, total / measureScale, measureUnit);
+            else
+                ImFormatString(label, sizeof(label), "总计: %.2f 像素", total);
             ImVec2 last = toScreen(measurePoints.back());
             dl->AddText(last + ImVec2(8, 8), IM_COL32(0, 0, 0, 180), label);
             dl->AddText(last + ImVec2(7, 7), IM_COL32(255, 80, 80, 255), label);
