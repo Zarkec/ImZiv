@@ -790,7 +790,7 @@ void ImageCanvas::draw(const ImVec2& size) {
             float my = m.y - pos.y - m_panY;
             float ix = mx / m_zoom;
             float iy = my / m_zoom;
-            m_zoom *= (wheel > 0) ? 1.15f : (1.0f / 1.15f);
+            m_zoom *= (wheel > 0) ? 1.2f : (1.0f / 1.2f);
             m_zoom = std::clamp(m_zoom, 0.02f, 64.0f);
             m_panX = m.x - pos.x - ix * m_zoom;
             m_panY = m.y - pos.y - iy * m_zoom;
