@@ -21,7 +21,7 @@ namespace hex::plugin::builtin {
                 continue;
 
             if (m_collapsedTools.find(entry.unlocalizedName) == m_collapsedTools.end())
-                m_collapsedTools[entry.unlocalizedName] = false;
+                m_collapsedTools[entry.unlocalizedName] = true;
 
             auto& collapsed = m_collapsedTools[entry.unlocalizedName];
             const std::string title = std::string(entry.icon != nullptr ? entry.icon : "") + " " + Lang(entry.unlocalizedName);
