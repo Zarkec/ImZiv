@@ -63,6 +63,7 @@ public:
     // --- Measurement ---
     void clearMeasurement();
     void clearAngleMeasurement();
+    void clearColorPicker();
 
     // --- File operations ---
     bool saveAs(const std::string& path) const;

@@ -483,6 +483,8 @@ bool ImageCanvas::uploadTexture(const std::vector<uint8_t>& buf, const std::stri
     m_bgrPixels.swap(newBgrPixels);
     clearMeasurement();
     clearAngleMeasurement();
+    clearCalibration();
+    clearColorPicker();
     return true;
 }
 
@@ -670,6 +672,13 @@ void ImageCanvas::clearAngleMeasurement() {
     angleVertex = ImVec2(0, 0);
     angleFirstEnd = ImVec2(0, 0);
     angleSecondEnd = ImVec2(0, 0);
+}
+
+void ImageCanvas::clearColorPicker() {
+    colorPicked = false;
+    pickedR = pickedG = pickedB = 0;
+    pickedImgX = 0.0f;
+    pickedImgY = 0.0f;
 }
 
 // ============================================================
@@ -1071,8 +1080,8 @@ void ImageCanvas::draw(const ImVec2& size) {
             }
         }
         if (ImGui::IsMouseClicked(ImGuiMouseButton_Right)) {
-            calibRoiActive = false;
-            calibRoiDone = false;
+            if (calibRoiActive) calibRoiActive = false; // cancel dragging
+            else clearCalibration();                     // clear when done
         }
     }
 
@@ -1357,7 +1366,6 @@ cv::Mat ImageCanvas::bgrImage() const {
 // ============================================================
 
 void ImageCanvas::clearCalibration() {
-    calibMode = false;
     calibRoiActive = false;
     calibRoiStart = ImVec2(0, 0);
     calibRoiEnd = ImVec2(0, 0);
