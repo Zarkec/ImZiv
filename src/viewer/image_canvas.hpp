@@ -45,7 +45,7 @@ public:
     bool getPixelBGR(int x, int y, uint8_t& b, uint8_t& g, uint8_t& r) const;
 
     // --- Tool mode ---
-    enum class Tool { None, Measure, Angle, ColorPicker, CropSelect, RoiCenterSelect, HsvSample };
+    enum class Tool { None, Measure, Angle, ColorPicker, CropSelect, RoiCenterSelect, HsvSample, ChessboardCalib };
     void setTool(Tool tool, int ownerId = 0);
     Tool currentTool() const;
 
@@ -83,6 +83,12 @@ public:
 
     // --- Cleanup ---
     void cleanup();
+
+    // --- BGR pixel data access ---
+    cv::Mat bgrImage() const;
+
+    // --- Calibration ---
+    void clearCalibration();
 
     // --- Measurement color constants ---
     static constexpr int MeasureSegColorCount = 8;
@@ -135,6 +141,21 @@ public:
     bool hsvSampleMode = false;
     bool hsvSampleApplyRequested = false;
     std::vector<HsvSample> m_hsvSamples;
+
+    // --- Chessboard calibration ---
+    bool calibMode = false;
+    bool calibRoiActive = false;
+    ImVec2 calibRoiStart = ImVec2(0, 0);
+    ImVec2 calibRoiEnd = ImVec2(0, 0);
+    bool calibRoiDone = false;
+    int calibRoiX = 0, calibRoiY = 0, calibRoiW = 0, calibRoiH = 0;
+    float calibSquareSizeMm = 2.0f;
+    bool calibDetectionDone = false;
+    bool calibDetectionOk = false;
+    bool calibNeedDetect = false;
+    std::vector<ImVec2> calibCorners;
+    float calibPixelDist = 0.0f;
+    float calibPixelToMm = 0.0f;
 
 private:
     GLFWwindow* m_window;

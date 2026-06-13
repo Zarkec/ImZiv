@@ -90,6 +90,7 @@ add_executable(ImZiv WIN32
     src/tools/measurement_tool.cpp
     src/tools/angle_measurement_tool.cpp
     src/tools/color_picker_tool.cpp
+    src/tools/calibration_tool.cpp
     src/platform/native_dialog.cpp
     src/platform/platform_window.cpp
     src/viewer/view_image_editor.cpp

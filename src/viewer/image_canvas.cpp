@@ -439,6 +439,7 @@ void ImageCanvas::clearState() {
     roiCenterSelectOwnerId = 0;
     clearMeasurement();
     clearAngleMeasurement();
+    clearCalibration();
 }
 
 bool ImageCanvas::uploadTexture(const std::vector<uint8_t>& buf, const std::string& path) {
@@ -589,6 +590,8 @@ void ImageCanvas::setTool(Tool tool, int ownerId) {
             clearMeasurement();
         if (m_tool == Tool::Angle)
             clearAngleMeasurement();
+        if (m_tool == Tool::ChessboardCalib)
+            clearCalibration();
     }
 
     // Clear all tool flags
@@ -604,6 +607,9 @@ void ImageCanvas::setTool(Tool tool, int ownerId) {
     roiCenterSelectDone = false;
     roiCenterSelectOwnerId = 0;
     hsvSampleMode = false;
+    calibMode = false;
+    calibRoiActive = false;
+    calibRoiDone = false;
 
     // Activate the requested tool
     m_tool = tool;
@@ -615,6 +621,7 @@ void ImageCanvas::setTool(Tool tool, int ownerId) {
         case Tool::CropSelect: cropSelectMode = true; cropSelectOwnerId = ownerId; break;
         case Tool::RoiCenterSelect: roiCenterSelectMode = true; roiCenterSelectOwnerId = ownerId; break;
         case Tool::HsvSample: hsvSampleMode = true; break;
+        case Tool::ChessboardCalib: calibMode = true; break;
         default: break;
     }
 }
@@ -800,7 +807,7 @@ void ImageCanvas::draw(const ImVec2& size) {
         const int dragButtons[] = { ImGuiMouseButton_Left, ImGuiMouseButton_Middle };
         for (int btn : dragButtons) {
             if ((measureMode || angleMode || colorPickerMode || cropSelectMode ||
-                 roiCenterSelectMode || hsvSampleMode) && btn == ImGuiMouseButton_Left)
+                 roiCenterSelectMode || hsvSampleMode || calibMode) && btn == ImGuiMouseButton_Left)
                 continue;
             if (ImGui::IsMouseDragging(btn)) {
                 ImVec2 d = ImGui::GetMouseDragDelta(btn);
@@ -812,11 +819,11 @@ void ImageCanvas::draw(const ImVec2& size) {
         }
 
         if (!measureMode && !angleMode && !colorPickerMode && !cropSelectMode &&
-            !roiCenterSelectMode && !hsvSampleMode && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+            !roiCenterSelectMode && !hsvSampleMode && !calibMode && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
             m_wantFit = true;
         if (ImGui::IsMouseClicked(ImGuiMouseButton_Right) && !ImGui::IsAnyItemHovered() &&
             !measureMode && !angleMode && !colorPickerMode && !cropSelectMode &&
-            !roiCenterSelectMode && !hsvSampleMode) {
+            !roiCenterSelectMode && !hsvSampleMode && !calibMode) {
             ImGui::OpenPopup("ImageContextMenu");
             ImGui::SetWindowFocus();
         }
@@ -1031,6 +1038,44 @@ void ImageCanvas::draw(const ImVec2& size) {
         }
     }
 
+    // Calibration ROI select mode
+    if (calibMode && imageHovered) {
+        const bool insideImage = m_mouseImgX >= 0.0f && m_mouseImgY >= 0.0f;
+        if (insideImage) {
+            if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+                calibRoiActive = true;
+                calibRoiStart = ImVec2(m_mouseImgX, m_mouseImgY);
+                calibRoiEnd = calibRoiStart;
+                calibRoiDone = false;
+                calibDetectionDone = false;
+                calibDetectionOk = false;
+                calibCorners.clear();
+            }
+            if (calibRoiActive && ImGui::IsMouseDown(ImGuiMouseButton_Left))
+                calibRoiEnd = ImVec2(m_mouseImgX, m_mouseImgY);
+            if (calibRoiActive && ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
+                int x1 = std::min(int(calibRoiStart.x), int(calibRoiEnd.x));
+                int y1 = std::min(int(calibRoiStart.y), int(calibRoiEnd.y));
+                int x2 = std::max(int(calibRoiStart.x), int(calibRoiEnd.x));
+                int y2 = std::max(int(calibRoiStart.y), int(calibRoiEnd.y));
+                int w = x2 - x1, h = y2 - y1;
+                if (w > 0 && h > 0) {
+                    calibRoiX = x1;
+                    calibRoiY = y1;
+                    calibRoiW = w;
+                    calibRoiH = h;
+                    calibRoiDone = true;
+                    calibNeedDetect = true;
+                }
+                calibRoiActive = false;
+            }
+        }
+        if (ImGui::IsMouseClicked(ImGuiMouseButton_Right)) {
+            calibRoiActive = false;
+            calibRoiDone = false;
+        }
+    }
+
     // --- Rendering ---
     ImDrawList* dl = ImGui::GetWindowDrawList();
     dl->PushClipRect(pos, ImVec2(pos.x + sz.x, pos.y + sz.y), true);
@@ -1158,7 +1203,8 @@ void ImageCanvas::draw(const ImVec2& size) {
                      (angleMode && imageHovered && m_mouseImgX >= 0.0f) ||
                      (colorPickerMode && ((imageHovered && m_mouseImgX >= 0.0f) || colorPicked)) ||
                      (roiCenterSelectMode && imageHovered && m_mouseImgX >= 0.0f) ||
-                     (hsvSampleMode && imageHovered && m_mouseImgX >= 0.0f);
+                     (hsvSampleMode && imageHovered && m_mouseImgX >= 0.0f) ||
+                     (calibMode && imageHovered && m_mouseImgX >= 0.0f);
     if (showCross) {
         float crossImgX = (colorPickerMode && colorPicked) ? pickedImgX : m_mouseImgX;
         float crossImgY = (colorPickerMode && colorPicked) ? pickedImgY : m_mouseImgY;
@@ -1198,6 +1244,36 @@ void ImageCanvas::draw(const ImVec2& size) {
             std::abs(int(cropSelectEnd.x) - int(cropSelectStart.x)),
             std::abs(int(cropSelectEnd.y) - int(cropSelectStart.y)));
         dl->AddText(ImVec2(rMin.x, rMin.y - 18.0f), IM_COL32(0, 180, 255, 255), label);
+    }
+
+    // Calibration ROI overlay
+    if (calibMode && (calibRoiActive || calibRoiDone)) {
+        const float z = m_zoom;
+        ImVec2 s1, s2;
+        if (calibRoiActive) {
+            s1 = ImVec2(imgMin.x + calibRoiStart.x * z, imgMin.y + calibRoiStart.y * z);
+            s2 = ImVec2(imgMin.x + calibRoiEnd.x * z, imgMin.y + calibRoiEnd.y * z);
+        } else {
+            s1 = ImVec2(imgMin.x + calibRoiX * z, imgMin.y + calibRoiY * z);
+            s2 = ImVec2(imgMin.x + (calibRoiX + calibRoiW) * z, imgMin.y + (calibRoiY + calibRoiH) * z);
+        }
+        ImVec2 rMin(std::min(s1.x, s2.x), std::min(s1.y, s2.y));
+        ImVec2 rMax(std::max(s1.x, s2.x), std::max(s1.y, s2.y));
+        dl->AddRectFilled(rMin, rMax, IM_COL32(0, 220, 180, 40));
+        dl->AddRect(rMin, rMax, IM_COL32(0, 220, 180, 200), 0.0f, 0, 2.0f);
+        char label[64];
+        ImFormatString(label, sizeof(label), "%d x %d", calibRoiW, calibRoiH);
+        dl->AddText(ImVec2(rMin.x, rMin.y - 18.0f), IM_COL32(0, 220, 180, 255), label);
+    }
+
+    // Calibration detected corners overlay
+    if (calibDetectionDone && !calibCorners.empty()) {
+        const float z = m_zoom;
+        for (const auto& corner : calibCorners) {
+            ImVec2 p(imgMin.x + corner.x * z, imgMin.y + corner.y * z);
+            dl->AddCircle(p, 5.0f, IM_COL32(0, 0, 0, 160), 0, 2.0f);
+            dl->AddCircleFilled(p, 3.0f, IM_COL32(0, 220, 0, 255));
+        }
     }
 
     // External overlay callback
@@ -1264,4 +1340,36 @@ void ImageCanvas::drawStatus() {
 
     ImGui::EndChild();
     ImGui::PopStyleVar();
+}
+
+// ============================================================
+// BGR image accessor
+// ============================================================
+
+cv::Mat ImageCanvas::bgrImage() const {
+    if (m_bgrPixels.empty() || m_imgWidth <= 0 || m_imgHeight <= 0)
+        return {};
+    return cv::Mat(m_imgHeight, m_imgWidth, CV_8UC3, const_cast<uint8_t*>(m_bgrPixels.data()));
+}
+
+// ============================================================
+// Calibration cleanup
+// ============================================================
+
+void ImageCanvas::clearCalibration() {
+    calibMode = false;
+    calibRoiActive = false;
+    calibRoiStart = ImVec2(0, 0);
+    calibRoiEnd = ImVec2(0, 0);
+    calibRoiDone = false;
+    calibRoiX = 0;
+    calibRoiY = 0;
+    calibRoiW = 0;
+    calibRoiH = 0;
+    calibDetectionDone = false;
+    calibDetectionOk = false;
+    calibNeedDetect = false;
+    calibCorners.clear();
+    calibPixelDist = 0.0f;
+    calibPixelToMm = 0.0f;
 }

@@ -7,6 +7,7 @@
 #include "tools/color_picker_tool.hpp"
 #include "tools/angle_measurement_tool.hpp"
 #include "tools/measurement_tool.hpp"
+#include "tools/calibration_tool.hpp"
 #include "platform/native_dialog.hpp"
 #include "platform/platform_window.hpp"
 #include "app/ui.hpp"
@@ -99,6 +100,7 @@ namespace {
         registerMeasurementTool(canvas);
         registerAngleMeasurementTool(canvas);
         registerColorPickerTool(canvas);
+        registerCalibrationTool(canvas);
         hex::ContentRegistry::Views::add<hex::plugin::builtin::ViewTools>();
         g_contentRegistered = true;
     }

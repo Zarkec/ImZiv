@@ -12,6 +12,7 @@ namespace hex {
             { "imziv.tool.measure", "测距" },
             { "imziv.tool.angle", "测角" },
             { "imziv.tool.colorpicker", "取色" },
+            { "imziv.tool.calibration", "校准" },
         };
 
         auto iter = translations.find(value.get());
