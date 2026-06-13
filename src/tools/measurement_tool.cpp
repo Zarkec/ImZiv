@@ -14,10 +14,6 @@ namespace {
         if (ImGui::Checkbox("启用测距", &enabled))
             canvas.setTool(enabled ? ImageCanvas::Tool::Measure : ImageCanvas::Tool::None);
 
-        ImGui::SameLine();
-        if (ImGui::Button("清除"))
-            clearMeasurement(canvas);
-
         ImGui::Separator();
 
         ImGui::SetNextItemWidth(100);
@@ -82,9 +78,4 @@ void registerMeasurementTool(ImageCanvas& canvas) {
     hex::ContentRegistry::Tools::add("imziv.tool.measure", "\xee\xaa\x96", [&canvas] {
         drawMeasurementTool(canvas);
     });
-}
-
-void clearMeasurement(ImageCanvas& canvas) {
-    canvas.measurePoints.clear();
-    canvas.measureActive = false;
 }

@@ -3,4 +3,3 @@
 class ImageCanvas;
 
 void registerMeasurementTool(ImageCanvas& canvas);
-void clearMeasurement(ImageCanvas& canvas);

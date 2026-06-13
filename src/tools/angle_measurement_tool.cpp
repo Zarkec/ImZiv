@@ -25,18 +25,8 @@ namespace {
 
     void drawAngleMeasurementTool(ImageCanvas& canvas) {
         bool enabled = canvas.angleMode;
-        if (ImGui::Checkbox("启用测角", &enabled)) {
-            if (enabled)
-                canvas.setTool(ImageCanvas::Tool::Angle);
-            else {
-                canvas.setTool(ImageCanvas::Tool::None);
-                clearAngleMeasurement(canvas);
-            }
-        }
-
-        ImGui::SameLine();
-        if (ImGui::Button("清除"))
-            clearAngleMeasurement(canvas);
+        if (ImGui::Checkbox("启用测角", &enabled))
+            canvas.setTool(enabled ? ImageCanvas::Tool::Angle : ImageCanvas::Tool::None);
 
         ImGui::Separator();
 
@@ -78,8 +68,4 @@ void registerAngleMeasurementTool(ImageCanvas& canvas) {
     hex::ContentRegistry::Tools::add("imziv.tool.angle", "\xee\xab\x95", [&canvas] {
         drawAngleMeasurementTool(canvas);
     });
-}
-
-void clearAngleMeasurement(ImageCanvas& canvas) {
-    canvas.clearAngleMeasurement();
 }
